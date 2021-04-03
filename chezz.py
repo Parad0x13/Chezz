@@ -29,7 +29,7 @@ class Board:
             board = [[None] * 8 for i in range(8)]    # Maybe use numpy for this instead
 
             #setup = "rnbqkbnrppppppppeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeePPPPPPPPRNBQKBNR"    # Might have to change the N and K for knight and king at some point
-            setup = "rnbqkbnrppppppppeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeePeeeeeeeeeeeeeee"    # Might have to change the N and K for knight and king at some point
+            setup = "rnbqkbnrppppppppeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeePPeeeeeeeeeeeeee"    # Might have to change the N and K for knight and king at some point
 
             # I really don't like how this is done, consider doing it more elegantly eventually. Just getting it working for now
             for y in range(len(board)):
@@ -41,18 +41,21 @@ class Board:
             self.board = board
 
     # This function is going to need a LOT of refining and optimization in the future...
+    # [TODO] I feel like this function is getting called far too often...
     def legal_moves(self, a, b, nA, nB):
-        verbose = False
+        #verbose = False
 
         retVal = []
         if self.turn == WHITE:
             allowable = []
 
             # PAWN, needs drastic improvements and optimization
+            #searching = "P"
             if self.board[b][a] == "P":
                 opponent = WHITE
                 if self.turn == WHITE: opponent = BLACK
 
+                """
                 # Check directly in front
                 forward_count = 1
                 if self.turn == 0: forward_count = 2
@@ -72,6 +75,31 @@ class Board:
                 elif nA > 0:
                     if(verbose): print("Pawns may not move left or right unless attacking. {} {} -> {} {}".format(a, b, nA, nB))
                 else: retVal.append([a + 0, b - 1])
+                """
+
+                rules = [
+                    [a + 0, b - 1, "e"],    # Move forward
+                    # Account for double first move here
+                    [a - 1, b - 1, opponent],    # Attack up left
+                    [a + 1, b - 1, opponent],    # Attack up right
+                ]
+
+                # Swap board
+                if self.turn == BLACK:
+                    for i in range(len(rules)):
+                        rules[0] = -rules[0]
+                        rules[1] = -rules[1]
+
+                for rule in rules:
+                    try:    # Try does a good job of dynamically handling out of bounds issues
+                        piece = self.board[nB][nA]
+                        if nA == rule[0] and nB == rule[1] and piece in rule[2]:
+                            retVal.append(rule)
+
+                        #    Now we handle promotion, really this needs to be fully fleshed out to any piece. Default Queen
+                        #if nB == 0: self.board[nB][nA] = "Q"    # This doesn't work as it happens to all the backrow... figure it out
+
+                    except: pass    # Movement is out of bounds
 
             if len(retVal) == 0: return None
             return retVal
@@ -82,11 +110,9 @@ class Board:
             for nX in range(len(self.board[nY])):
                 legal = self.legal_moves(x, y, nX, nY)
                 if legal != None: legals.append([x, y, nX, nY])
-                #if legal != None and legal not in legals: legals.append([x, y, nX, nY])
 
         print(legals)
         return legals
-        #print(set(legals))
 
     # Just return the first legal move
     def rating_idiot(self, moves):
@@ -128,7 +154,7 @@ class Board:
 
 board = Board()
 
-for n in range(5):
+for n in range(7):
     board.render()
     board.play()
     board.render()
