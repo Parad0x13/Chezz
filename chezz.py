@@ -16,6 +16,7 @@ class Board:
         self.setup_board()    # Might have to optimize this later to account directly for all board types and not an array
         self.turn = WHITE
         self.turn_count = 0
+        self.game_alive = True
 
     def render(self):
         # Really should make an iterator or something for this... Or maybe a for x, y if I can
@@ -28,8 +29,7 @@ class Board:
         if self.board_type == BOARD_TYPE_LINEAR:
             board = [[None] * 8 for i in range(8)]    # Maybe use numpy for this instead
 
-            #setup = "rnbqkbnrppppppppeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeePPPPPPPPRNBQKBNR"    # Might have to change the N and K for knight and king at some point
-            setup = "rnbqkbnrppppppppeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeePPeeeeeeeeeeeeee"    # Might have to change the N and K for knight and king at some point
+            setup = "rnbqkbnrppppppppeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeePPPPPPPPRNBQKBNR"    # Might have to change the N and K for knight and king at some point
 
             # I really don't like how this is done, consider doing it more elegantly eventually. Just getting it working for now
             for y in range(len(board)):
@@ -40,42 +40,25 @@ class Board:
 
             self.board = board
 
+    # Probably not efficient to do this every single turn...
+    def rotate(self):
+        tuples = zip(*self.board[::-1])
+        self.board = [list(elm) for elm in tuples]
+
     # This function is going to need a LOT of refining and optimization in the future...
     # [TODO] I feel like this function is getting called far too often...
     def legal_moves(self, a, b, nA, nB):
-        #verbose = False
-
         retVal = []
-        if self.turn == WHITE:
+        if self.turn == WHITE or self.turn == BLACK:
             allowable = []
 
             # PAWN, needs drastic improvements and optimization
-            #searching = "P"
-            if self.board[b][a] == "P":
+            searching = "P"
+            if self.turn == BLACK: searching = "p"
+
+            if self.board[b][a] == searching:
                 opponent = WHITE
                 if self.turn == WHITE: opponent = BLACK
-
-                """
-                # Check directly in front
-                forward_count = 1
-                if self.turn == 0: forward_count = 2
-                enemy = self.board[nB][nA]
-                if enemy in opponent:
-                    if(verbose): print("Pawns may not attack forward into an enemy. {} {} -> {} {}".format(a, b, nA, nB))
-                elif nA < 0 or nA > 7 or nB < 0 or nB > 7:
-                    if(verbose): print("Pawns may not go out of bounds. {} {} -> {} {}".format(a, b, nA, nB))
-                elif self.turn in enemy:
-                    if(verbose): print("Pawns may not move forward into an ally. {} {} -> {} {}".format(a, b, nA, nB))
-                elif nB > b:
-                    if(verbose):  print("Pawns may not move backwards. {} {} -> {} {}".format(a, b, nA, nB))
-                elif nB == b:
-                    if(verbose): print("Pawns may not move onto themselves. {} {} -> {} {}".format(a, b, nA, nB))
-                elif b - nB > forward_count:
-                    if(verbose): print("Pawns may not move forward more than once unless on their first move. {} {} -> {} {}".format(a, b, nA, nB))
-                elif nA > 0:
-                    if(verbose): print("Pawns may not move left or right unless attacking. {} {} -> {} {}".format(a, b, nA, nB))
-                else: retVal.append([a + 0, b - 1])
-                """
 
                 rules = [
                     [a + 0, b - 1, "e"],    # Move forward
@@ -83,12 +66,6 @@ class Board:
                     [a - 1, b - 1, opponent],    # Attack up left
                     [a + 1, b - 1, opponent],    # Attack up right
                 ]
-
-                # Swap board
-                if self.turn == BLACK:
-                    for i in range(len(rules)):
-                        rules[0] = -rules[0]
-                        rules[1] = -rules[1]
 
                 for rule in rules:
                     try:    # Try does a good job of dynamically handling out of bounds issues
@@ -111,7 +88,6 @@ class Board:
                 legal = self.legal_moves(x, y, nX, nY)
                 if legal != None: legals.append([x, y, nX, nY])
 
-        print(legals)
         return legals
 
     # Just return the first legal move
@@ -128,33 +104,49 @@ class Board:
 
         return move
 
-    def play(self):
+    def iterate(self):
         legals = []
         for y in range(len(self.board)):
                 for x in range(len(self.board[y])):
-                    if self.board[y][x] in WHITE:
-                        moves = self.possible_moves(WHITE, x, y)
+                    if self.board[y][x] in self.turn:
+                        moves = self.possible_moves(self.turn, x, y)
                         if len(moves) > 0: legals.append(moves)
 
-        if len(legals) > 0:
-            pass    # For now only let white play
-            #if self.turn == WHITE: self.turn = BLACK
-            #else: self.turn = WHITE
-        else:    # Put win/loss conditions here
+        if len(legals) == 0:
             print("No more moves available!")
+            self.game_alive = False
             return
 
         # Actually play the move
         best_move = self.best_move(legals, RATING_IDIOT)
-        print("Best move is {}".format(best_move))
+        #print("Best move is {}".format(best_move))
+        print()
         self.board[best_move[3]][best_move[2]] = self.board[best_move[1]][best_move[0]]
         self.board[best_move[1]][best_move[0]] = "e"
+
+    def play(self):
+        if self.game_alive == False: exit()
+
+        self.iterate()
+
+        if self.turn == WHITE: self.turn = BLACK
+        else: self.turn = WHITE
+
+        for i in range(2): self.rotate()
+
+        self.iterate()
+
+        if self.turn == WHITE: self.turn = BLACK
+        else: self.turn = WHITE
+
+        for i in range(2): self.rotate()
 
         self.turn_count += 1
 
 board = Board()
 
-for n in range(7):
+for n in range(1):
+#while True:
     board.render()
     board.play()
     board.render()
